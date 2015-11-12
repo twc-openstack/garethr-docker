@@ -68,7 +68,7 @@ define docker::command(
 
   validate_re($image, '^[\S]*$')
   validate_re($wrapper_path, '^\/[\S]+$')
-  validate_re($command, '^\/[\S]+$')
+  validate_re($command, '^\/.+$')
   validate_re($ensure, '^(file|absent)$')
   validate_re($memory_limit, '^[\d]*(b|k|m|g)$')
   validate_string($docker_command)
