@@ -1,4 +1,4 @@
-source "http://rubygems.org"
+source "https://rubygems.org"
 
 group :test do
   gem "rake"
@@ -10,12 +10,13 @@ group :test do
   gem "puppetlabs_spec_helper"
   gem "metadata-json-lint"
   gem "rspec", '< 3.2.0'
+  gem "rspec-retry"
 end
 
 group :development do
   gem "travis"
   gem "travis-lint"
-  gem "beaker", :git => 'https://github.com/puppetlabs/beaker.git'
+  gem "beaker", "~> 2.0"
   gem "beaker-puppet_install_helper", :require => false
   gem "beaker-rspec"
   gem "puppet-blacksmith"
