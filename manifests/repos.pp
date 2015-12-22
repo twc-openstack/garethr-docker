@@ -7,15 +7,16 @@ class docker::repos {
 
   case $::osfamily {
     'Debian': {
-      include apt
-      # apt-transport-https is required by the apt to get the sources
-      ensure_packages(['apt-transport-https'])
-      Package['apt-transport-https'] -> Apt::Source <||>
-      if $::operatingsystem == 'Debian' and $::lsbdistcodename == 'wheezy' {
-        include apt::backports
-      }
-      Exec['apt_update'] -> Package[$docker::prerequired_packages]
       if ($docker::use_upstream_package_source) {
+        include apt
+        # apt-transport-https is required by the apt to get the sources
+        ensure_packages(['apt-transport-https'])
+        Package['apt-transport-https'] -> Apt::Source <||>
+        if $::operatingsystem == 'Debian' and $::lsbdistcodename == 'wheezy' {
+          include apt::backports
+        }
+        Exec['apt_update'] -> Package[$docker::prerequired_packages]
+
         apt::source { 'docker':
           location          => $docker::package_source_location,
           release           => $docker::package_release,
