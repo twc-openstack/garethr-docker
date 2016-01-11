@@ -107,7 +107,11 @@ stop() {
     <% if @remove_container_on_stop -%>
         $docker rm <% if @remove_volume_on_stop %>-v<% end %> <%= @sanitised_title %>
     <% end -%>
-    return $?
+
+    if [ "true" = "$(docker inspect -f '{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
+        return 1
+    fi
+    return 0
 }
 
 clean() {
