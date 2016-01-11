@@ -90,7 +90,11 @@ stop() {
     <% end -%>
     $docker stop <%= @sanitised_title %>
     $docker rm <%= @sanitised_title %>
-    return $?
+
+    if [ "true" = "$(docker inspect -f '{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
+        return 1
+    fi
+    return 0
 }
 
 clean() {
