@@ -79,6 +79,7 @@ define docker::run(
   $socket_connect = [],
   $hostentries = [],
   $restart = undef,
+  $before_start = false,
   $before_stop = false,
 ) {
   include docker::params
