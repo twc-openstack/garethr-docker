@@ -67,7 +67,7 @@ start() {
     <% if @before_start -%>
         <%= @before_start %>
     <% end -%>
-    $docker rm <%= @sanitised_title %> >/dev/null 2>&1
+    $docker rm -f <%= @sanitised_title %> >/dev/null 2>&1
     <% if @pull_on_start -%>
         $docker pull <%= @image %>
     <% end -%>
@@ -92,7 +92,7 @@ stop() {
         <%= @before_stop %>
     <% end -%>
     $docker stop <%= @sanitised_title %>
-    $docker rm <%= @sanitised_title %>
+    $docker rm -f <%= @sanitised_title %>
 
     if [ "true" = "$(docker inspect -f '{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
         return 1
