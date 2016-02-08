@@ -78,7 +78,7 @@ start() {
         <%= @before_start %>
     <% end -%>
     <% if @remove_container_on_stop -%>
-        $docker rm <% if @remove_volume_on_start %>-v<% end %> <%= @sanitised_title %> >/dev/null 2>&1
+        $docker rm -f <% if @remove_volume_on_start %>-v<% end %> <%= @sanitised_title %> >/dev/null 2>&1
     <% else %>
         $docker create \
         <%= @docker_run_flags %> \
@@ -115,7 +115,7 @@ stop() {
     <% end -%>
     $docker stop --time=<%= @stop_wait_time %> <%= @sanitised_title %>
     <% if @remove_container_on_stop -%>
-        $docker rm <% if @remove_volume_on_stop %>-v<% end %> <%= @sanitised_title %>
+        $docker rm -f <% if @remove_volume_on_stop %>-v<% end %> <%= @sanitised_title %>
     <% end -%>
 
     if [ "true" = "$(docker inspect -f '{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
