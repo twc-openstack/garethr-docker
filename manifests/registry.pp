@@ -65,7 +65,7 @@ define docker::registry(
       creates => "${homedir}/.docker/config.json",
     }
 
-    -> augeas { "Create config in ${homedir} entry for ${title}":
+    -> augeas { "Create config in ${homedir} for ${title}":
       incl      => "${homedir}/.docker/config.json",
       lens      => 'Json.lns',
       show_diff => $show_diff,
@@ -78,13 +78,6 @@ define docker::registry(
         "set dict/entry[. = 'auths']/dict/entry[. = '${server}']/dict/entry[. = 'auth']/string ${auth_string}",
       ],
     }
-    -> augeas { "Set auth in ${homedir} entry for ${title}":
-      incl      => "${homedir}/.docker/config.json",
-      lens      => 'Json.lns',
-      changes   => [
-      ],
-    }
-
   } else {
     augeas { "Remove auth entry in ${homedir} for ${title}":
       incl    => "${homedir}/.docker/config.json",

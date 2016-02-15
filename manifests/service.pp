@@ -6,6 +6,16 @@
 # [*tcp_bind*]
 #   Which tcp port, if any, to bind the docker service to.
 #
+# [*ip_forward*]
+#   This flag interacts with the IP forwarding setting on 
+#   your host system's kernel
+#
+# [*iptables*]
+#   Enable Docker's addition of iptables rules
+#
+# [*ip_masq*]
+#   Enable IP masquerading for bridge's IP range.
+#
 # [*socket_bind*]
 #   Which local unix socket to bind the docker service to.
 #
@@ -21,10 +31,22 @@
 # [*shell_values*]
 #   Array of shell values to pass into init script config files
 #
+# [*manage_service*]
+#   Specify whether the service should be managed.
+#   Valid values are 'true', 'false'.
+#   Defaults to 'true'.
+#
 class docker::service (
   $docker_command                    = $docker::docker_command,
   $service_name                      = $docker::service_name,
+  $daemon_subcommand                 = $docker::daemon_subcommand,
   $tcp_bind                          = $docker::tcp_bind,
+  $ip_forward                        = $docker::ip_forward,
+  $iptables                          = $docker::iptables,
+  $ip_masq                           = $docker::ip_masq,
+  $bridge                            = $docker::bridge,
+  $fixed_cidr                        = $docker::fixed_cidr,
+  $default_gateway                   = $docker::default_gateway,
   $socket_bind                       = $docker::socket_bind,
   $log_level                         = $docker::log_level,
   $log_driver                        = $docker::log_driver,
@@ -35,6 +57,7 @@ class docker::service (
   $dns_search                        = $docker::dns_search,
   $service_state                     = $docker::service_state,
   $service_enable                    = $docker::service_enable,
+  $manage_service                    = $docker::manage_service,
   $root_dir                          = $docker::root_dir,
   $extra_parameters                  = $docker::extra_parameters,
   $shell_values                      = $docker::shell_values,
@@ -55,152 +78,120 @@ class docker::service (
   $nowarn_kernel                     = $docker::nowarn_kernel,
   $dm_thinpooldev                    = $docker::dm_thinpooldev,
   $dm_use_deferred_removal           = $docker::dm_use_deferred_removal,
+  $dm_use_deferred_deletion          = $docker::dm_use_deferred_deletion,
   $dm_blkdiscard                     = $docker::dm_blkdiscard,
   $dm_override_udev_sync_check       = $docker::dm_override_udev_sync_check,
   $storage_devs                      = $docker::storage_devs,
   $storage_vg                        = $docker::storage_vg,
   $storage_root_size                 = $docker::storage_root_size,
   $storage_data_size                 = $docker::storage_data_size,
+  $storage_min_data_size             = $docker::storage_min_data_size,
   $storage_chunk_size                = $docker::storage_chunk_size,
   $storage_growpart                  = $docker::storage_growpart,
   $storage_auto_extend_pool          = $docker::storage_auto_extend_pool,
   $storage_pool_autoextend_threshold = $docker::storage_pool_autoextend_threshold,
   $storage_pool_autoextend_percent   = $docker::storage_pool_autoextend_percent,
-) inherits docker::params {
+  $storage_config                    = $docker::storage_config,
+  $storage_config_template           = $docker::storage_config_template,
+  $service_provider                  = $docker::service_provider,
+  $service_config                    = $docker::service_config,
+  $service_config_template           = $docker::service_config_template,
+  $service_overrides_template        = $docker::service_overrides_template,
+  $service_hasstatus                 = $docker::service_hasstatus,
+  $service_hasrestart                = $docker::service_hasrestart,
+) {
+
+  unless $::osfamily =~ /(Debian|RedHat|Archlinux)/ {
+    fail('The docker::service class needs a Debian, RedHat or Archlinux based system.')
+  }
+
   $dns_array = any2array($dns)
   $dns_search_array = any2array($dns_search)
   $extra_parameters_array = any2array($extra_parameters)
   $shell_values_array = any2array($shell_values)
+  $tcp_bind_array = any2array($tcp_bind)
 
-  case $::osfamily {
-    'Debian': {
-      if $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease, '15.04') < 0 {
-        $hasstatus = true
-        $hasrestart = false
-        file { '/etc/init.d/docker':
-          ensure => 'link',
-          target => '/lib/init/upstart-job',
-          force  => true,
-          notify => Service['docker'],
-        }
-      } else {
-        $hasstatus = undef
-        $hasrestart = undef
-      }
-
-      if ($::operatingsystem == 'Debian' and versioncmp($::operatingsystemmajrelease, '8') >= 0) or ($::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease, '15.04') >= 0) {
-        file { '/etc/systemd/system/docker.service.d':
-          ensure => directory;
-        }
-        file { '/etc/systemd/system/docker.service.d/service-overrides.conf':
-          ensure  => present,
-          content => template('docker/etc/systemd/system/docker.service.d/service-overrides-debian.conf.erb'),
-          notify  => Exec['docker-systemd-reload'];
-        }
-        file { '/etc/default/docker-storage':
-          ensure  => present,
-          force   => true,
-          content => template('docker/etc/sysconfig/docker-storage.erb'),
-          notify  => Service['docker'],
-        }
-        $template = 'docker/etc/sysconfig/docker.systemd.erb'
-      } else {
-        $template = 'docker/etc/default/docker.erb'
-      }
-
-      file { "/etc/default/${service_name}":
-        ensure  => present,
-        force   => true,
-        content => template($template),
-        notify  => Service['docker'],
-      }
-
-    }
-    'RedHat': {
-      if ($::operatingsystem == 'Fedora') or (versioncmp($::operatingsystemrelease, '7.0') >= 0) {
-        $template = 'docker.systemd.erb'
-
-        file { '/etc/sysconfig/docker-storage-setup':
-          ensure  => present,
-          force   => true,
-          content => template('docker/etc/sysconfig/docker-storage-setup.erb'),
-          before  => Service['docker'],
-          notify  => Service['docker'],
-        }
-
-      } else {
-        $template = 'docker.erb'
-      }
-      $hasstatus     = undef
-      $hasrestart    = undef
-
-      if ($docker::use_upstream_package_source) {
-        file { '/etc/systemd/system/docker.service.d':
-          ensure => directory;
-        }
-
-        file { '/etc/systemd/system/docker.service.d/service-overrides.conf':
-          ensure  => present,
-          content => template('docker/etc/systemd/system/docker.service.d/service-overrides-rhel.conf.erb'),
-          notify  => Exec['docker-systemd-reload'];
-        }
-      }
-
-      file { '/etc/sysconfig/docker':
-        ensure  => present,
-        force   => true,
-        content => template("docker/etc/sysconfig/${template}"),
-        before  => Service['docker'],
-        notify  => Service['docker'],
-      }
-
-      file { '/etc/sysconfig/docker-storage':
-        ensure  => present,
-        force   => true,
-        content => template('docker/etc/sysconfig/docker-storage.erb'),
-        before  => Service['docker'],
-        notify  => Service['docker'],
-      }
-    }
-    'Archlinux': {
-      $hasstatus  = true
-      $hasrestart = true
-
-      file { '/etc/systemd/system/docker.service.d':
-        ensure => directory;
-      }
-
-      file { '/etc/systemd/system/docker.service.d/service-overrides.conf':
-        ensure  => present,
-        content => template('docker/etc/systemd/system/docker.service.d/service-overrides-archlinux.conf.erb'),
-        notify  => Exec['docker-systemd-reload'];
-      }
-
-      file { '/etc/conf.d/docker':
-        ensure  => present,
-        force   => true,
-        content => template('docker/etc/conf.d/docker.erb'),
-        notify  => Service['docker'];
-      }
-    }
-    default: {
-      fail('Docker needs a Debian, RedHat or Archlinux based system.')
-    }
-  }
-
-  if $::operatingsystem == 'Ubuntu' and versioncmp($::operatingsystemrelease, '15.04') < 0 {
-    $provider = 'upstart'
+  if $service_config {
+    $_service_config = $service_config
   } else {
-    $provider = undef
+    if $::osfamily == 'Debian' {
+      $_service_config = "/etc/default/${service_name}"
+    }
   }
 
-  service { 'docker':
-    ensure     => $service_state,
-    name       => $service_name,
-    enable     => $service_enable,
-    hasstatus  => $hasstatus,
-    hasrestart => $hasrestart,
-    provider   => $provider,
+  $_manage_service = $manage_service ? {
+    false   => undef,
+    true    => 'Service[docker]',
+    default => undef,
   }
 
+  if $::osfamily == 'RedHat' {
+    file { '/etc/sysconfig/docker-storage-setup':
+      ensure  => present,
+      force   => true,
+      content => template('docker/etc/sysconfig/docker-storage-setup.erb'),
+      before  => $_manage_service,
+      notify  => $_manage_service,
+    }
+  }
+
+  case $service_provider {
+    'systemd': {
+      file { '/etc/systemd/system/docker.service.d':
+        ensure => directory
+      }
+
+      if $service_overrides_template {
+        file { '/etc/systemd/system/docker.service.d/service-overrides.conf':
+          ensure  => present,
+          content => template($service_overrides_template),
+          notify  => Exec['docker-systemd-reload-before-service'],
+          before  => $_manage_service,
+        }
+        exec { 'docker-systemd-reload-before-service':
+          path    => ['/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/'],
+          command => 'systemctl daemon-reload',
+          before  => $_manage_service,
+          unless  => "systemctl status ${service_name}",
+        }
+      }
+    }
+    'upstart': {
+      file { '/etc/init.d/docker':
+        ensure => 'link',
+        target => '/lib/init/upstart-job',
+        force  => true,
+        notify => $_manage_service,
+      }
+    }
+  }
+
+  if $storage_config {
+    file { $storage_config:
+      ensure  => present,
+      force   => true,
+      content => template($storage_config_template),
+      notify  => $_manage_service,
+    }
+  }
+
+  if $_service_config {
+    file { $_service_config:
+      ensure  => present,
+      force   => true,
+      content => template($service_config_template),
+      notify  => $_manage_service,
+    }
+  }
+
+  if $manage_service {
+    service { 'docker':
+      ensure     => $service_state,
+      name       => $service_name,
+      enable     => $service_enable,
+      hasstatus  => $service_hasstatus,
+      hasrestart => $service_hasrestart,
+      provider   => $service_provider,
+    }
+  }
 }

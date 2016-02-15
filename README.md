@@ -88,6 +88,17 @@ class { 'docker':
 }
 ```
 
+Docker also provide a [commercially
+supported](https://docs.docker.com/docker-trusted-registry/install/install-csengine/)
+version of the Docker Engine, called Docker CS, available from a separate repository.
+This can be installed with the module using the following:
+
+```puppet
+class { 'docker':
+  docker_cs => true,
+}
+```
+
 The module also now uses the upstream repositories by default for RHEL
 based distros, including Fedora. If you want to stick with the distro packages
 you should use the following:
@@ -105,8 +116,14 @@ socket if required.
 
 ```puppet
 class { 'docker':
-  tcp_bind    => 'tcp://127.0.0.1:4243',
-  socket_bind => 'unix:///var/run/docker.sock',
+  tcp_bind        => ['tcp://127.0.0.1:4243','tcp://10.0.0.1:4243'],
+  socket_bind     => 'unix:///var/run/docker.sock',
+  ip_forward      => true,
+  iptables        => true,
+  ip_masq         => true,
+  bridge          => br0,
+  fixed_cidr      => '10.20.1.0/24',
+  default_gateway => '10.20.0.1',
 }
 ```
 
@@ -118,6 +135,18 @@ Note that this relies on a package with that version existing in the reposiroty.
 ```puppet
 class { 'docker':
   version => '0.5.5',
+}
+```
+
+And if you want to install a specific rpm package of docker you can do so:
+
+```puppet
+class { 'docker' :
+  manage_package              => true,
+  use_upstream_package_source => false,
+  package_name                => 'docker-engine'
+  package_source              => 'https://get.docker.com/rpm/1.7.0/centos-6/RPMS/x86_64/docker-engine-1.7.0-1.el6.x86_64.rpm',
+  prerequired_packages        => [ 'glibc.i686', 'glibc.x86_64', 'sqlite.i686', 'sqlite.x86_64', 'device-mapper', 'device-mapper-libs', 'device-mapper-event-libs', 'device-mapper-event' ]
 }
 ```
 
@@ -257,6 +286,7 @@ docker::run { 'helloworld':
   privileged      => false,
   pull_on_start   => false,
   before_stop     => 'echo "So Long, and Thanks for All the Fish"',
+  after           => [ 'container_b', 'mysql' ],
   depends         => [ 'container_a', 'postgres' ],
 }
 ```
@@ -267,7 +297,9 @@ Specifying `pull_on_start` will pull the image before each time it is started.
 
 Specifying `before_stop` will execute a command before stopping the container.
 
-The `depends` option allows expressing containers that must be started before. This affects the generation of the init.d/systemd script.
+The `after` option allows expressing containers that must be started before. This affects the generation of the init.d/systemd script.
+
+The `depends` option allows expressing container dependencies. The depended container will be started before this container(s), and this container will be stopped before the depended container(s). This affects the generation of the init.d/systemd script. You can use `depend_services` to specify dependency for generic services (non-docker) that should be started before this container.
 
 The service file created for systemd based systems enables automatic restarting of the service on failure by default.
 
@@ -277,6 +309,19 @@ To use an image tag just append the tag name to the image name separated by a se
 docker::run { 'helloworld':
   image   => 'ubuntu:precise',
   command => '/bin/sh -c "while true; do echo hello world; sleep 1; done"',
+}
+```
+
+By default the generated init scripts will remove the container (but not
+any associated volumes) when the service is stoped or started. This
+behaviour can be modified using the following, with defaults shown:
+
+```puppet
+docker::run { 'helloworld':
+  remove_container_on_start => true,
+  remove_volume_on_start    => false,
+  remove_container_on_stop  => true,
+  remove_volume_on_stop     => false,
 }
 ```
 
@@ -291,6 +336,80 @@ If using hiera, there's a `docker::run_instance` class you can configure, for ex
     helloworld:
       image: 'ubuntu:precise'
       command: '/bin/sh -c "while true; do echo hello world; sleep 1; done"'
+```
+
+### Networks
+
+As of Docker 1.9.x, Docker has official support for networks. The module
+now exposes a type, `docker_network`, used to manage those. This works
+like:
+
+```puppet
+docker_network { 'my-net':
+  ensure   => present,
+  driver   => 'overlay',
+  subnet   => '192.168.1.0/24',
+  gateway  => '192.168.1.1',
+  ip_range => '192.168.1.4/32',
+}
+```
+
+Only the name is required, along with an ensure value. If you don't pass
+a driver Docker network will use the default bridge. Note that some
+networks require the Docker daemon to be configured to use them, for
+instance for the overlay network you'll need a cluster store configured.
+You can do that on the `docker` class like so:
+
+```puppet
+extra_parameters => '--cluster-store=<backend>://172.17.8.101:<port> --cluster-advertise=<interface>:2376'
+```
+
+### Compose
+
+Docker Compose allows for describing a set of containers in a simple
+YAML format, and then running a command to build and run those
+containers. The `docker_compose` type included in the module allows for
+using Puppet to run Compose. This means you can have Puppet remediate
+any issues and make sure reality matches the model in your Compose
+file.
+
+Here's an example. Given the following Compose file:
+
+```yaml
+compose_test:
+  image: ubuntu:14.04
+  command: /bin/sh -c "while true; do echo hello world; sleep 1; done"
+```
+
+That could be added to the machine you're running Puppet using a `file`
+resource or any other means.
+
+Then define a `docker_compose` resource pointing at the Compose file
+like so:
+
+```puppet
+docker_compose { '/tmp/docker-compose.yml':
+  ensure  => present,
+}
+```
+
+Now when Puppet runs it will automatically run Compose is required,
+for example because the relevant Compose services aren't running.
+
+You can also pass addition options (for example to enable experimental
+features) as well as provide scaling rules. The following example
+requests 2 containers be running for example. Puppet will now run
+Compose if the number of containers for a given service don't match the
+provided scale values.
+
+```puppet
+docker_compose { '/tmp/docker-compose.yml':
+  ensure  => present,
+  scale   => {
+    'compose_test' => 2,
+  },
+  options => '--x-networking'
+}
 ```
 
 ### Private registries
@@ -336,4 +455,3 @@ docker::exec { 'cron_allow_root':
   unless       => 'grep root /usr/lib/cron/cron.allow 2>/dev/null',
 }
 ```
-

@@ -4,33 +4,33 @@ describe 'docker::registry', :type => :define do
   let(:title) { 'localhost:5000' }
 
   context 'with no explicit ensure' do 
-    it { should contain_augeas('Create auth entry for localhost:5000') }
+    it { should contain_augeas('Create config in /root for localhost:5000') }
     it { should contain_exec('Create /root/.docker for localhost:5000').with({
       :command => 'mkdir -m 0700 -p /root/.docker',
       :creates => '/root/.docker',
     })}
     it { should contain_exec('Create /root/.docker/config.json for localhost:5000').with({
-      :command => 'echo "{}" > /root/.docker/config.json; chmod 0600 /root/.docker/config.json',
+      :command => "echo '{}' > /root/.docker/config.json; chmod 0600 /root/.docker/config.json",
       :creates => '/root/.docker/config.json',
     })}
   end
 
   context 'with ensure => absent' do
     let(:params) { { 'ensure' => 'absent' } }
-    it { should contain_augeas('Remove auth entry for localhost:5000') }
+    it { should contain_augeas('Remove auth entry in /root for localhost:5000') }
     it { should_not contain_exec('Create /root/.docker for localhost:5000') }
     it { should_not contain_exec('Create /root/.docker/config.json for localhost:5000') }
 
   end
 
   context 'with ensure => present' do
-    it { should contain_augeas('Create auth entry for localhost:5000') }
+    it { should contain_augeas('Create config in /root for localhost:5000') }
     it { should contain_exec('Create /root/.docker for localhost:5000').with({
       :command => 'mkdir -m 0700 -p /root/.docker',
       :creates => '/root/.docker',
     })}
     it { should contain_exec('Create /root/.docker/config.json for localhost:5000').with({
-      :command => 'echo "{}" > /root/.docker/config.json; chmod 0600 /root/.docker/config.json',
+      :command => "echo '{}' > /root/.docker/config.json; chmod 0600 /root/.docker/config.json",
       :creates => '/root/.docker/config.json',
     })}
   end

@@ -8,16 +8,47 @@ params = {
 ['Debian', 'RedHat', 'Archlinux'].each do |osfamily|
 
   describe 'docker::command', :type => :define do
-    let(:facts) { {:osfamily => osfamily} }
     let(:title) { '/usr/bin/wrapper' }
     let(:params) { params }
 
     context "on #{osfamily}" do
-
       if osfamily == 'Debian'
-        command = 'docker.io'
-      else
+        let(:facts) { {
+          :osfamily               => 'Debian',
+          :lsbdistid              => 'Ubuntu',
+          :operatingsystem        => 'Ubuntu',
+          :lsbdistcodename        => 'trusty',
+          :operatingsystemrelease => '14.04',
+          :kernelrelease          => '3.8.0-29-generic'
+        } }
+        initscript = '/etc/init.d/docker-sample'
         command = 'docker'
+        systemd = false
+      elsif osfamily == 'Archlinux'
+        let(:facts) { {:osfamily => osfamily} }
+        initscript = '/etc/systemd/system/docker-sample.service'
+        command = 'docker'
+        systemd = true
+      elsif osfamily == 'RedHat'
+        let(:facts) { {
+          :osfamily => 'RedHat',
+          :operatingsystem => 'RedHat',
+          :operatingsystemrelease => '6.6',
+          :operatingsystemmajrelease => '6',
+        } }
+        initscript = '/etc/init.d/docker-sample'
+        command = 'docker'
+        systemd = false
+      else
+        let(:facts) { {
+          :osfamily => 'RedHat',
+          :operatingsystem => 'Amazon',
+          :operatingsystemrelease => '2015.09',
+          :operatingsystemmajrelease => '2015',
+        } }
+        initscript = '/etc/init.d/docker-sample'
+        command = 'docker'
+        systemd = false
       end
 
       context 'passing the required params' do
