@@ -1,0 +1,3 @@
+This branch is for local patches on top of upstream master.  It will be
+aggressively rebased and force pushed to keep it as clean as possible before
+merging to our master.
