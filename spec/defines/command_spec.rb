@@ -248,6 +248,11 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/--net host/) }
       end
 
+      context 'when setting pid namespace to use' do
+        let(:params) { params.merge({'pid' => 'host'}) }
+        it { should contain_file('/usr/bin/wrapper').with_content(/--pid host/) }
+      end
+
       context 'when `pull_on_start` is true' do
         let(:params) { params.merge({'pull_on_start' => true }) }
         it { should contain_file('/usr/bin/wrapper').with_content(/docker pull base/) }
