@@ -7,7 +7,7 @@
 #   Which tcp port, if any, to bind the docker service to.
 #
 # [*ip_forward*]
-#   This flag interacts with the IP forwarding setting on 
+#   This flag interacts with the IP forwarding setting on
 #   your host system's kernel
 #
 # [*iptables*]
@@ -53,6 +53,7 @@ class docker::service (
   $log_opt                           = $docker::log_opt,
   $selinux_enabled                   = $docker::selinux_enabled,
   $socket_group                      = $docker::socket_group,
+  $labels                            = $docker::labels,
   $dns                               = $docker::dns,
   $dns_search                        = $docker::dns_search,
   $service_state                     = $docker::service_state,
@@ -64,6 +65,8 @@ class docker::service (
   $proxy                             = $docker::proxy,
   $no_proxy                          = $docker::no_proxy,
   $execdriver                        = $docker::execdriver,
+  $bip                               = $docker::bip,
+  $mtu                               = $docker::mtu,
   $storage_driver                    = $docker::storage_driver,
   $dm_basesize                       = $docker::dm_basesize,
   $dm_fs                             = $docker::dm_fs,
@@ -93,16 +96,22 @@ class docker::service (
   $storage_pool_autoextend_percent   = $docker::storage_pool_autoextend_percent,
   $storage_config                    = $docker::storage_config,
   $storage_config_template           = $docker::storage_config_template,
+  $storage_setup_file                = $docker::storage_setup_file,
   $service_provider                  = $docker::service_provider,
   $service_config                    = $docker::service_config,
   $service_config_template           = $docker::service_config_template,
   $service_overrides_template        = $docker::service_overrides_template,
   $service_hasstatus                 = $docker::service_hasstatus,
   $service_hasrestart                = $docker::service_hasrestart,
+  $tls_enable                        = $docker::tls_enable,
+  $tls_verify                        = $docker::tls_verify,
+  $tls_cacert                        = $docker::tls_cacert,
+  $tls_cert                          = $docker::tls_cert,
+  $tls_key                           = $docker::tls_key,
 ) {
 
-  unless $::osfamily =~ /(Debian|RedHat|Archlinux)/ {
-    fail('The docker::service class needs a Debian, RedHat or Archlinux based system.')
+  unless $::osfamily =~ /(Debian|RedHat|Archlinux|Gentoo)/ {
+    fail('The docker::service class needs a Debian, RedHat, Archlinux or Gentoo based system.')
   }
 
   $dns_array = any2array($dns)
@@ -120,13 +129,12 @@ class docker::service (
   }
 
   $_manage_service = $manage_service ? {
-    false   => undef,
-    true    => 'Service[docker]',
-    default => undef,
+    true    => Service['docker'],
+    default => [],
   }
 
   if $::osfamily == 'RedHat' {
-    file { '/etc/sysconfig/docker-storage-setup':
+    file { $storage_setup_file:
       ensure  => present,
       force   => true,
       content => template('docker/etc/sysconfig/docker-storage-setup.erb'),
@@ -149,10 +157,10 @@ class docker::service (
           before  => $_manage_service,
         }
         exec { 'docker-systemd-reload-before-service':
-          path    => ['/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/'],
-          command => 'systemctl daemon-reload',
-          before  => $_manage_service,
-          unless  => "systemctl status ${service_name}",
+          path        => ['/bin/', '/sbin/', '/usr/bin/', '/usr/sbin/'],
+          command     => 'systemctl daemon-reload > /dev/null',
+          before      => $_manage_service,
+          refreshonly => true,
         }
       }
     }
@@ -164,6 +172,7 @@ class docker::service (
         notify => $_manage_service,
       }
     }
+    default: {}
   }
 
   if $storage_config {

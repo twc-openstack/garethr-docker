@@ -13,10 +13,10 @@ describe 'docker compose' do
     its(:exit_status) { should eq 0 }
   end
 
-  context 'Creating compose projects' do
+  context 'Creating compose v2 projects' do
     before(:all) do
       @install = <<-code
-docker_compose { '/tmp/docker-compose.yml':
+docker_compose { '/tmp/docker-compose-v2.yml':
   ensure => present,
 }
       code
@@ -32,16 +32,16 @@ docker_compose { '/tmp/docker-compose.yml':
     end
   end
 
-  context 'Destroying compose projects' do
+  context 'Destroying compose v2 projects' do
     before(:all) do
       install = <<-code
-docker_compose { '/tmp/docker-compose.yml':
+docker_compose { '/tmp/docker-compose-v2.yml':
   ensure => present,
 }
       code
       apply_manifest(install, :catch_failures=>true)
       @uninstall = <<-code
-docker_compose { '/tmp/docker-compose.yml':
+docker_compose { '/tmp/docker-compose-v2.yml':
   ensure => absent,
 }
       code
@@ -59,7 +59,7 @@ docker_compose { '/tmp/docker-compose.yml':
 
   context 'Requesting a specific version of compose' do
     before(:all) do
-      @version = '1.5.1'
+      @version = '1.6.2'
       @pp = <<-code
         class { 'docker::compose':
           version => '#{@version}',

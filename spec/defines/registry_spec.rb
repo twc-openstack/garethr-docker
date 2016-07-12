@@ -2,8 +2,7 @@ require 'spec_helper'
 
 describe 'docker::registry', :type => :define do
   let(:title) { 'localhost:5000' }
-
-  context 'with no explicit ensure' do 
+  context 'with no explicit ensure' do
     it { should contain_augeas('Create config in /root for localhost:5000') }
     it { should contain_exec('Create /root/.docker for localhost:5000').with({
       :command => 'mkdir -m 0700 -p /root/.docker',

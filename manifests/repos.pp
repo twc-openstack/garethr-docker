@@ -29,9 +29,6 @@ class docker::repos {
         }
         if $docker::manage_package {
           include apt
-          # apt-transport-https is required by the apt to get the sources
-          ensure_packages(['apt-transport-https'])
-          Package['apt-transport-https'] -> Apt::Source <||>
           if $::operatingsystem == 'Debian' and $::lsbdistcodename == 'wheezy' {
             include apt::backports
           }
@@ -67,5 +64,6 @@ class docker::repos {
         }
       }
     }
+    default: {}
   }
 }

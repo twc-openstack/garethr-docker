@@ -25,6 +25,26 @@
 #   tcp://127.0.0.1:4243
 #   Defaults to undefined
 #
+# [*tls_enable*]
+#   Enable TLS.
+#   Defaults to false
+#
+# [*tls_verify*]
+#  Use TLS and verify the remote
+#  Defaults to true
+#
+# [*tls_cacert*]
+#   Path to TLS CA certificate
+#   Defaults to '/etc/docker/ca.pem'
+#
+# [*tls_cert*]
+#   Path to TLS certificate file
+#   Defaults to '/etc/docker/cert.pem'
+#
+# [*tls_key*]
+#   Path to TLS key file
+#   Defaults to '/etc/docker/cert.key'
+#
 # [*ip_forward*]
 #   Enables IP forwarding on the Docker host.
 #   The default is true.
@@ -37,8 +57,16 @@
 #   Enable IP masquerading for bridge's IP range.
 #   The default is true.
 #
+# [*bip*]
+#   Specify docker's network bridge IP, in CIDR notation.
+#   Defaults to undefined.
+#
+# [*mtu*]
+#   Docker network MTU.
+#   Defaults to undefined.
+#
 # [*bridge*]
-#   Attach containers to a pre-existing network bridge 
+#   Attach containers to a pre-existing network bridge
 #   use 'none' to disable container networking
 #   Defaults to undefined.
 #
@@ -80,6 +108,8 @@
 #                Writes log messages to a GELF endpoint: Graylog or Logstash.
 #     fluentd  : Fluentd logging driver for Docker.
 #                Writes log messages to fluentd (forward input).
+#     splunk   : Splunk logging driver for Docker.
+#                Writes log messages to Splunk (HTTP Event Collector).
 #
 # [*log_opt*]
 #   Set the log driver specific options
@@ -107,6 +137,9 @@
 #                fluentd-tag={{.ID}} - short container id (12 characters)|
 #                            {{.FullID}} - full container id
 #                            {{.Name}} - container name
+#     splunk   :
+#                splunk-token=<splunk_http_event_collector_token>
+#                splunk-url=https://your_splunk_instance:8088
 #
 # [*selinux_enabled*]
 #   Enable selinux support. Default is false. SELinux does  not  presently
@@ -120,7 +153,7 @@
 #
 # [*package_source_location*]
 #   If you're using an upstream package source, what is it's
-#   location. Defaults to https://get.docker.com/ubuntu on Debian
+#   location. Defaults to http://get.docker.com/ubuntu on Debian
 #
 # [*service_state*]
 #   Whether you want to docker daemon to start up
@@ -171,7 +204,7 @@
 # [*storage_driver*]
 #   Specify a storage driver to use
 #   Default is undef: let docker choose the correct one
-#   Valid values: aufs, devicemapper, btrfs, overlay, vfs, zfs
+#   Valid values: aufs, devicemapper, btrfs, overlay, overlay2, vfs, zfs
 #
 # [*dm_basesize*]
 #   The size to use when creating the base device, which limits the size of images and containers.
@@ -222,7 +255,9 @@
 #   Defaults to false
 #
 # [*dm_override_udev_sync_check*]
-#   By default, the devicemapper backend attempts to synchronize with the udev device manager for the Linux kernel. This option allows disabling that synchronization, to continue even though the configuration may be buggy.
+#   By default, the devicemapper backend attempts to synchronize with the udev
+#   device manager for the Linux kernel. This option allows disabling that
+#   synchronization, to continue even though the configuration may be buggy.
 #   Defaults to true
 #
 # [*manage_package*]
@@ -288,8 +323,15 @@ class docker(
   $prerequired_packages              = $docker::params::prerequired_packages,
   $docker_cs                         = $docker::params::docker_cs,
   $tcp_bind                          = $docker::params::tcp_bind,
+  $tls_enable                        = $docker::params::tls_enable,
+  $tls_verify                        = $docker::params::tls_verify,
+  $tls_cacert                        = $docker::params::tls_cacert,
+  $tls_cert                          = $docker::params::tls_cert,
+  $tls_key                           = $docker::params::tls_key,
   $ip_forward                        = $docker::params::ip_forward,
   $ip_masq                           = $docker::params::ip_masq,
+  $bip                               = $docker::params::bip,
+  $mtu                               = $docker::params::mtu,
   $iptables                          = $docker::params::iptables,
   $socket_bind                       = $docker::params::socket_bind,
   $fixed_cidr                        = $docker::params::fixed_cidr,
@@ -314,6 +356,7 @@ class docker(
   $dns                               = $docker::params::dns,
   $dns_search                        = $docker::params::dns_search,
   $socket_group                      = $docker::params::socket_group,
+  $labels                            = $docker::params::labels,
   $extra_parameters                  = undef,
   $shell_values                      = undef,
   $proxy                             = $docker::params::proxy,
@@ -356,6 +399,7 @@ class docker(
   $storage_pool_autoextend_percent   = $docker::params::storage_pool_autoextend_percent,
   $storage_config                    = $docker::params::storage_config,
   $storage_config_template           = $docker::params::storage_config_template,
+  $storage_setup_file                = $docker::params::storage_setup_file,
   $service_provider                  = $docker::params::service_provider,
   $service_config                    = $docker::params::service_config,
   $service_config_template           = $docker::params::service_config_template,
@@ -365,21 +409,24 @@ class docker(
 ) inherits docker::params {
 
   validate_string($version)
-  validate_re($::osfamily, '^(Debian|RedHat|Archlinux)$', 'This module only works on Debian and Red Hat based systems.')
+  validate_re($::osfamily, '^(Debian|RedHat|Archlinux|Gentoo)$',
+              'This module only works on Debian or Red Hat based systems or on Archlinux as on Gentoo.')
   validate_bool($manage_kernel)
   validate_bool($manage_package)
   validate_bool($docker_cs)
   validate_bool($manage_service)
   validate_array($docker_users)
   validate_array($log_opt)
+  validate_bool($tls_enable)
   validate_bool($ip_forward)
   validate_bool($iptables)
   validate_bool($ip_masq)
   validate_string($bridge)
   validate_string($fixed_cidr)
   validate_string($default_gateway)
+  validate_string($bip)
 
-  if ($fixed_cidr or $default_gateway) and (!$bridge) {
+  if ($default_gateway) and (!$bridge) {
     fail('You must provide the $bridge parameter.')
   }
 
@@ -388,7 +435,8 @@ class docker(
   }
 
   if $log_driver {
-    validate_re($log_driver, '^(none|json-file|syslog|journald|gelf|fluentd)$', 'log_driver must be one of none, json-file, syslog, journald, gelf or fluentd')
+    validate_re($log_driver, '^(none|json-file|syslog|journald|gelf|fluentd|splunk)$',
+                'log_driver must be one of none, json-file, syslog, journald, gelf, fluentd or splunk')
   }
 
   if $selinux_enabled {
@@ -396,7 +444,8 @@ class docker(
   }
 
   if $storage_driver {
-    validate_re($storage_driver, '^(aufs|devicemapper|btrfs|overlay|vfs|zfs)$', 'Valid values for storage_driver are aufs, devicemapper, btrfs, overlay, vfs, zfs.' )
+    validate_re($storage_driver, '^(aufs|devicemapper|btrfs|overlay|overlay2|vfs|zfs)$',
+                'Valid values for storage_driver are aufs, devicemapper, btrfs, overlay, overlay2, vfs, zfs.' )
   }
 
   if $dm_fs {
@@ -419,8 +468,18 @@ class docker(
     fail('You need to provide both $dm_datadev and $dm_metadatadev parameters for direct lvm.')
   }
 
-  if ($dm_basesize or $dm_fs or $dm_mkfsarg or $dm_mountopt or $dm_blocksize or $dm_loopdatasize or $dm_loopmetadatasize or $dm_datadev or $dm_metadatadev) and ($storage_driver != 'devicemapper') {
+  if ($dm_basesize or $dm_fs or $dm_mkfsarg or $dm_mountopt or $dm_blocksize or $dm_loopdatasize or
+      $dm_loopmetadatasize or $dm_datadev or $dm_metadatadev) and ($storage_driver != 'devicemapper') {
     fail('Values for dm_ variables will be ignored unless storage_driver is set to devicemapper.')
+  }
+
+  if($tls_enable) {
+    if(!$tcp_bind) {
+        fail('You need to provide tcp bind parameter for TLS.')
+    }
+    validate_string($tls_cacert)
+    validate_string($tls_cert)
+    validate_string($tls_key)
   }
 
   class { 'docker::repos': } ->

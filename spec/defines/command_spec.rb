@@ -146,7 +146,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/--expose=4666/).with_content(/--expose=4777/) }
       end
 
-      context 'when passing serveral environment variables' do
+      context 'when passing several environment variables' do
         let(:params) { params.merge({'env' => ['FOO=BAR', 'FOO2=BAR2']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/-e FOO=BAR/).with_content(/-e FOO2=BAR2/) }
       end
@@ -156,7 +156,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/-e FOO=BAR/) }
       end
 
-      context 'when passing serveral environment files' do
+      context 'when passing several environment files' do
         let(:params) { params.merge({'env_file' => ['/etc/foo.env', '/etc/bar.env']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/--env-file \/etc\/foo.env/).with_content(/--env-file \/etc\/bar.env/) }
       end
@@ -166,7 +166,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/--env-file \/etc\/foo.env/) }
       end
 
-      context 'when passing serveral dns addresses' do
+      context 'when passing several dns addresses' do
         let(:params) { params.merge({'dns' => ['8.8.8.8', '8.8.4.4']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/--dns 8.8.8.8/).with_content(/--dns 8.8.4.4/) }
       end
@@ -176,7 +176,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/--dns 8.8.8.8/) }
       end
 
-      context 'when passing serveral sockets to connect to' do
+      context 'when passing several sockets to connect to' do
         let(:params) { params.merge({'socket_connect' => ['tcp://127.0.0.1:4567', 'tcp://127.0.0.2:4567']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/-H tcp:\/\/127.0.0.1:4567/) }
       end
@@ -186,7 +186,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/-H tcp:\/\/127.0.0.1:4567/) }
       end
 
-      context 'when passing serveral dns search domains' do
+      context 'when passing several dns search domains' do
         let(:params) { params.merge({'dns_search' => ['my.domain.local', 'other-domain.de']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/--dns-search my.domain.local/).with_content(/--dns-search other-domain.de/) }
       end
@@ -235,7 +235,7 @@ params = {
         it { should contain_file('/usr/bin/wrapper').with_content(/-v \/var\/log/) }
       end
 
-      context 'when passing serveral data volume' do
+      context 'when passing several data volume' do
         let(:params) { params.merge({'volumes' => ['/var/lib/couchdb', '/var/log']}) }
         it { should contain_file('/usr/bin/wrapper').with_content(/-v \/var\/lib\/couchdb/) }
         it { should contain_file('/usr/bin/wrapper').with_content(/-v \/var\/log/) }

@@ -1,7 +1,7 @@
 source "https://rubygems.org"
 
 group :test do
-  gem "rake"
+  gem "rake", "~> 10.0"
   if puppet_gem_version = ENV['PUPPET_GEM_VERSION']
     gem "puppet", ENV['PUPPET_GEM_VERSION']
   elsif puppet_git_url = ENV['PUPPET_GIT_URL']
@@ -11,11 +11,11 @@ group :test do
   end
   gem "puppet-lint"
   gem "puppet-lint-unquoted_string-check"
-  gem "rspec-puppet", "2.2.0"
+  gem "rspec-puppet"
   gem "puppet-syntax"
   gem "puppetlabs_spec_helper"
   gem "metadata-json-lint"
-  gem "rspec", '< 3.2.0' # Support for 1.8.7
+  gem "rspec"
   gem "rspec-retry"
   gem 'simplecov', '>= 0.11.0'
   gem 'simplecov-console'

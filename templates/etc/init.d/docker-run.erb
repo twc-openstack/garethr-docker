@@ -67,7 +67,7 @@ fi
 start() {
     [ -x $docker ] || exit 5
 
-    if [ "true" = "$($docker inspect --format='{{.State.Running}}' <%= @sanitised_title %>)" ]; then
+    if [ "true" = "$($docker inspect --format='{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
        failure
        printf "Container <%= @sanitised_title %> is still running.\n"
        exit 7
@@ -79,15 +79,25 @@ start() {
     <% end -%>
     <% if @remove_container_on_stop -%>
         $docker rm -f <% if @remove_volume_on_start %>-v<% end %> <%= @sanitised_title %> >/dev/null 2>&1
+    <% else %>
+        $docker create \
+        <%= @docker_run_flags %> \
+        --name <%= @sanitised_title %> \
+        <%= @image %> \
+        <% if @command %> <%= @command %><% end %>
     <% end -%>
     <% if @pull_on_start -%>
         $docker pull <%= @image %>
     <% end -%>
+    <% if @remove_container_on_stop -%>
     $docker run \
     <%= @docker_run_flags %> \
     --name <%= @sanitised_title %> \
     <%= @image %> \
     <% if @command %> <%= @command %><% end %>
+    <% else %>
+    $docker start -a <%= @sanitised_title %>
+    <% end -%>
 
     retval=$?
     echo
@@ -103,7 +113,7 @@ stop() {
     <% if @before_stop -%>
         <%= @before_stop %>
     <% end -%>
-    $docker stop <%= @sanitised_title %>
+    $docker stop --time=<%= @stop_wait_time %> <%= @sanitised_title %>
     <% if @remove_container_on_stop -%>
         $docker rm -f <% if @remove_volume_on_stop %>-v<% end %> <%= @sanitised_title %>
     <% end -%>
@@ -136,7 +146,7 @@ case "$1" in
     stop
     ;;
     status)
-    if [ "true" = "$($docker inspect --format='{{.State.Running}}' <%= @sanitised_title %>)" ]; then
+    if [ "true" = "$($docker inspect --format='{{.State.Running}}' <%= @sanitised_title %> 2>/dev/null)" ]; then
         echo $prog is running
         exit 0
     else

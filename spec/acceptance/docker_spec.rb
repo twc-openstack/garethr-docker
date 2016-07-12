@@ -7,20 +7,20 @@ describe 'docker' do
 
   context 'with default parameters' do
     let(:pp) {"
-        class { 'docker':
-          docker_users => [ 'testuser' ],
-        }
-        docker::image { 'nginx': }
-        docker::run { 'nginx':
-          image   => 'nginx',
-          net     => 'host',
-          require => Docker::Image['nginx'],
-        }
-        docker::run { 'nginx2':
-          image   => 'nginx',
-          restart => 'always',
-          require => Docker::Image['nginx'],
-        }
+			class { 'docker':
+				docker_users => [ 'testuser' ],
+			}
+			docker::image { 'nginx': }
+			docker::run { 'nginx':
+				image   => 'nginx',
+				net     => 'host',
+				require => Docker::Image['nginx'],
+			}
+			docker::run { 'nginx2':
+				image   => 'nginx',
+				restart => 'always',
+				require => Docker::Image['nginx'],
+			}
     "}
 
     it 'should apply with no errors' do
@@ -121,7 +121,6 @@ describe 'docker' do
       EOS
       apply_manifest(manifest, :catch_failures=>true)
       shell("grep #{@registry_address} #{@config_file}", :acceptable_exit_codes => [0])
-      shell("grep #{@registry_email} #{@config_file}", :acceptable_exit_codes => [0])
     end
 
     it 'should be able to logout from the registry' do

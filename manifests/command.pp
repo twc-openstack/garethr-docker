@@ -37,6 +37,7 @@ define docker::command(
   $memory_limit = '0b',
   $cpuset = [],
   $ports = [],
+  $labels = [],
   $expose = [],
   $volumes = [],
   $links = [],
@@ -64,7 +65,12 @@ define docker::command(
   $mode = '0755',
 ) {
   include docker::params
-  $docker_command = $docker::params::docker_command
+  if ($socket_connect != []) {
+    $sockopts = join(any2array($socket_connect), ',')
+    $docker_command = "${docker::params::docker_command} -H ${sockopts}"
+  }else {
+    $docker_command = $docker::params::docker_command
+  }
 
   validate_re($image, '^[\S]*$')
   validate_re($wrapper_path, '^\/[\S]+$')
@@ -104,6 +110,7 @@ define docker::command(
     memory_limit    => $memory_limit,
     net             => $net,
     ports           => any2array($ports),
+    labels          => any2array($labels),
     privileged      => $privileged,
     socket_connect  => any2array($socket_connect),
     tty             => $tty,
