@@ -22,6 +22,10 @@ module Puppet::Parser::Functions
       flags << "--net #{opts['net']}"
     end
 
+    if opts['pid']
+      flags << "--pid #{opts['pid']}"
+    end
+
     if opts['memory_limit']
       flags << "-m #{opts['memory_limit']}"
     end
@@ -51,6 +55,7 @@ module Puppet::Parser::Functions
     if opts['rm']
       flags << '--rm'
     end
+
 
     if opts['interactive']
       flags << '--interactive'

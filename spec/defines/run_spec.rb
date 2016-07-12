@@ -447,6 +447,11 @@ require 'spec_helper'
       it { should contain_file(initscript).with_content(/--net host/) }
     end
 
+    context 'when setting pid namespace' do
+      let(:params) { {'command' => 'command', 'image' => 'nginx', 'pid' => 'host'} }
+      it { should contain_file(initscript).with_content(/--pid host/) }
+    end
+
     context 'when `pull_on_start` is true' do
       let(:params) { {'command' => 'command', 'image' => 'base', 'pull_on_start' => true } }
       it { should contain_file(initscript).with_content(/docker pull base/) }
